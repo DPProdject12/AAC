@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Архитектура аппаратных средств — интерактивный стенд</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #1e1e2e; --bg2: #181825; --card: #313244; --card2: #45475a;
+    --accent: #89b4fa; --accent2: #b4befe; --green: #a6e3a1; --yellow: #f9e2af;
+    --red: #f38ba8; --mauve: #cba6f7; --peach: #fab387; --sky: #89dceb;
+    --text: #cdd6f4; --subtext: #a6adc8; --dim: #6c7086;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0;
+    background: var(--bg); color: var(--text); line-height: 1.55;
+    transition: background .3s, color .3s;
+  }
+  body.light {
+    --bg: #eff1f5; --bg2: #e6e9ef; --card: #ffffff; --card2: #dce0e8;
+    --text: #4c4f69; --subtext: #6c6f85; --dim: #9ca0b0;
+  }
+
+  header {
+    background: linear-gradient(135deg, var(--card), var(--card2));
+    padding: 22px 20px; text-align: center;
+    border-bottom: 3px solid var(--accent); position: relative;
+  }
+  header h1 { margin: 0 0 6px; color: var(--accent); font-size: 24px; }
+  header p { margin: 0; color: var(--subtext); font-size: 13px; }
+  .theme-btn {
+    position: absolute; right: 20px; top: 20px; padding: 8px 14px;
+    background: var(--bg2); color: var(--text); border: 1px solid var(--card2);
+    border-radius: 8px; cursor: pointer; font-size: 13px;
+  }
+  .theme-btn:hover { background: var(--accent); color: var(--bg); }
+
+  .tabs {
+    display: flex; background: var(--bg2); border-bottom: 2px solid var(--card);
+    overflow-x: auto; position: sticky; top: 0; z-index: 100;
+    scrollbar-width: thin;
+  }
+  .tab {
+    padding: 13px 16px; cursor: pointer; border: none; background: none;
+    color: var(--subtext); font-size: 13px; font-weight: 600; white-space: nowrap;
+    border-bottom: 3px solid transparent; transition: .2s;
+  }
+  .tab:hover { color: var(--text); background: var(--card); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--card); }
+
+  .container { max-width: 1250px; margin: 0 auto; padding: 22px 18px 80px; }
+  .panel { display: none; animation: fade .3s; }
+  .panel.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px);} to { opacity:1; transform:none;} }
+
+  .card {
+    background: var(--card); border-radius: 12px; padding: 20px;
+    margin-bottom: 18px; border-left: 4px solid var(--accent);
+  }
+  .card.green { border-left-color: var(--green); }
+  .card.yellow { border-left-color: var(--yellow); }
+  .card.mauve { border-left-color: var(--mauve); }
+  .card.peach { border-left-color: var(--peach); }
+  .card.sky { border-left-color: var(--sky); }
+  .card.red { border-left-color: var(--red); }
+  .card h2 { margin-top: 0; color: var(--accent); font-size: 19px; }
+  .card h3 { color: var(--yellow); font-size: 15px; margin: 18px 0 8px; }
+
+  button {
+    padding: 9px 16px; border-radius: 7px; border: none;
+    background: var(--accent); color: var(--bg); cursor: pointer;
+    font-weight: 600; font-size: 13px; transition: .15s; margin: 4px 6px 4px 0;
+  }
+  button:hover { background: var(--accent2); transform: translateY(-1px); }
+  button.green { background: var(--green); }
+  button.green:hover { background: #94d689; }
+  button.yellow { background: var(--yellow); }
+  button.yellow:hover { background: #f5d97f; }
+  button.red { background: var(--red); }
+  button.red:hover { background: #eb96a9; }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button.ghost:hover { background: var(--accent); color: var(--bg); }
+  button:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+  input, select, textarea {
+    padding: 9px 11px; border-radius: 7px; border: 1px solid var(--card2);
+    background: var(--bg2); color: var(--text); font-size: 13px; width: 100%;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--subtext); }
+
+  .grid { display: grid; gap: 14px; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+  .result {
+    font-size: 16px; color: var(--green); margin-top: 12px; font-weight: bold;
+    padding: 12px; background: var(--bg2); border-radius: 8px;
+    border-left: 3px solid var(--green);
+  }
+  .result .formula {
+    font-size: 12px; color: var(--subtext); font-weight: normal;
+    margin-top: 6px; font-family: monospace;
+  }
+
+  .note {
+    background: var(--bg2); border-left: 3px solid var(--yellow); padding: 11px 13px;
+    border-radius: 6px; font-size: 12.5px; color: var(--subtext); margin-top: 12px;
+  }
+  .note code { background: var(--card); padding: 2px 6px; border-radius: 4px; color: var(--yellow); font-size: 12px; }
+  .note b { color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 9px 11px; border-bottom: 1px solid var(--card2); text-align: left; }
+  th { color: var(--accent); background: var(--bg2); font-weight: 600; }
+  tr:hover td { background: var(--card2); }
+  td.num { text-align: right; font-family: monospace; color: var(--yellow); }
+  .table-wrap { max-height: 420px; overflow-y: auto; border-radius: 8px; }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 11px;
+    font-size: 10.5px; font-weight: bold;
+  }
+  .badge.par { background: var(--yellow); color: var(--bg); }
+  .badge.seq { background: var(--green); color: var(--bg); }
+
+  /* ===== ВЕНТИЛИ ===== */
+  .gate-box {
+    background: var(--bg2); border-radius: 10px; padding: 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    border: 1px solid var(--card2);
+  }
+  .gate-inputs { display: flex; flex-direction: column; gap: 6px; }
+  .gate-inputs label { flex-direction: row; align-items: center; gap: 6px; font-size: 13px; color: var(--text); }
+  .gate-inputs input[type=checkbox] { width: auto; accent-color: var(--accent); }
+  .gate-out {
+    font-size: 22px; font-weight: bold; padding: 6px 16px; border-radius: 8px;
+    background: var(--card); min-width: 50px; text-align: center;
+  }
+  .out-0 { color: var(--red); }
+  .out-1 { color: var(--green); }
+
+  /* ===== ИЕРАРХИЯ ===== */
+  .hierarchy { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+  .level {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--bg2); padding: 12px 14px; border-radius: 9px;
+    cursor: pointer; transition: .2s; border-left: 4px solid var(--accent);
+  }
+  .level:hover { background: var(--card2); }
+  .level.expanded { background: var(--card2); }
+  .level-num {
+    background: var(--accent); color: var(--bg); width: 30px; height: 30px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: bold; flex-shrink: 0;
+  }
+  .level-title { font-weight: 600; font-size: 14px; flex: 1; }
+  .level-sub { font-size: 12px; color: var(--subtext); }
+  .level-items {
+    display: none; padding: 10px 0 0 44px;
+    font-size: 12.5px; color: var(--subtext); line-height: 1.9;
+  }
+  .level.expanded .level-items { display: block; }
+  .level-items span {
+    display: inline-block; background: var(--card); padding: 3px 9px;
+    border-radius: 6px; margin: 2px 4px 2px 0; color: var(--text);
+  }
+
+  /* ===== СХЕМА ===== */
+  .bus-schema {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 40px 10px; flex-wrap: wrap; gap: 10px;
+  }
+  .node {
+    background: linear-gradient(135deg, var(--accent), var(--sky));
+    color: var(--bg); padding: 13px 16px; border-radius: 8px;
+    font-weight: bold; font-size: 12.5px; text-align: center;
+    min-width: 78px; transition: .3s;
+  }
+  .node.busy {
+    background: linear-gradient(135deg, var(--yellow), var(--peach));
+    transform: scale(1.12);
+    box-shadow: 0 0 20px var(--yellow);
+  }
+  .bus-line {
+    flex: 1; height: 8px; background: var(--card2); position: relative;
+    margin: 0 8px; border-radius: 4px; min-width: 40px; overflow: hidden;
+  }
+  .bus-line.active { background: var(--yellow); box-shadow: 0 0 15px var(--yellow); }
+  .data-packet {
+    position: absolute; width: 14px; height: 14px; background: var(--green);
+    border-radius: 50%; top: -3px; animation: move 1.4s linear infinite;
+  }
+  @keyframes move { from { left: -15px; } to { left: 100%; } }
+
+  /* ===== TIMING ===== */
+  .timing { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; }
+  .timing-row { display: flex; align-items: center; gap: 8px; }
+  .timing-label {
+    width: 100px; font-size: 11.5px; color: var(--subtext);
+    text-align: right; flex-shrink: 0;
+  }
+  .timing-cells { display: flex; flex: 1; gap: 4px; }
+  .cell {
+    flex: 1; min-width: 26px; height: 30px; border-radius: 5px;
+    background: var(--card2); display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: bold;
+    color: var(--bg); transition: .35s;
+  }
+  .cell.on { background: var(--accent); }
+  .cell.data { background: var(--green); }
+  .cell.clk { background: var(--mauve); }
+
+  /* ===== FLYNN ===== */
+  .flynn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .flynn-card {
+    background: var(--bg2); border-radius: 10px; padding: 14px;
+    border-top: 4px solid var(--accent); cursor: pointer; transition: .2s;
+  }
+  .flynn-card:hover { transform: translateY(-3px); background: var(--card2); }
+  .flynn-card.selected { background: var(--card2); border-top-color: var(--yellow); }
+  .flynn-abbr { font-size: 20px; font-weight: bold; color: var(--accent); }
+  .flynn-name { font-size: 12px; color: var(--subtext); margin: 4px 0 8px; }
+  .flynn-desc { font-size: 12.5px; color: var(--text); }
+
+  /* ===== ПАМЯТЬ ===== */
+  .mem-pyramid { display: flex; flex-direction: column; gap: 6px; margin: 16px 0; }
+  .mem-level {
+    padding: 12px 16px; border-radius: 8px; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; transition: .2s; color: var(--bg); font-weight: 600;
+  }
+  .mem-level:hover { transform: translateX(8px); }
+  .mem-level .mem-info { font-weight: normal; font-size: 11.5px; opacity: .9; }
+  .mem-reg { background: linear-gradient(90deg, var(--red), #f5a3b6); width: 35%; margin: 0 auto; }
+  .mem-cache { background: linear-gradient(90deg, var(--peach), var(--yellow)); width: 55%; margin: 0 auto; }
+  .mem-ram { background: linear-gradient(90deg, var(--green), #c8f0c5); width: 75%; margin: 0 auto; }
+  .mem-disk { background: linear-gradient(90deg, var(--accent), var(--sky)); width: 95%; margin: 0 auto; }
+
+  /* ===== QUIZ ===== */
+  .quiz-q { background: var(--bg2); padding: 14px; border-radius: 9px; margin-bottom: 12px; }
+  .quiz-q p { margin: 0 0 10px; font-weight: 600; }
+  .quiz-opt {
+    display: block; padding: 9px 12px; margin: 5px 0; border-radius: 7px;
+    background: var(--card); cursor: pointer; transition: .15s; font-size: 13px;
+    border: 1px solid transparent;
+  }
+  .quiz-opt:hover { background: var(--card2); }
+  .quiz-opt.correct { background: rgba(166,227,161,.25); border-color: var(--green); }
+  .quiz-opt.wrong { background: rgba(243,139,168,.25); border-color: var(--red); }
+  .quiz-opt input { width: auto; margin-right: 8px; }
+
+  /* ===== ФОРМА ===== */
+  .form-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px; margin-bottom: 14px;
+  }
+
+  /* ===== ЖУРНАЛ ===== */
+  .journal-stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px; margin-bottom: 14px;
+  }
+  .stat {
+    background: var(--bg2); border-radius: 9px; padding: 12px; text-align: center;
+    border-top: 3px solid var(--accent);
+  }
+  .stat-val { font-size: 22px; font-weight: bold; color: var(--yellow); }
+  .stat-lbl { font-size: 11px; color: var(--subtext); margin-top: 2px; }
+
+  .filter-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filter-row input, .filter-row select { width: auto; flex: 1; min-width: 130px; }
+
+  /* Прогресс практикума */
+  .progress-box { background: var(--bg2); border-radius: 9px; padding: 14px; margin-top: 14px; }
+  .progress-bar-bg { background: var(--card2); height: 14px; border-radius: 7px; overflow: hidden; }
+  .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--green), var(--accent)); transition: .4s; }
+
+  /* Бейдж "выполнено" */
+  .task-done {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 10.5px; background: var(--green); color: var(--bg); font-weight: bold;
+    margin-left: 8px;
+  }
+  .task-id {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 10.5px; background: var(--card2); color: var(--subtext); font-weight: bold;
+    margin-right: 8px;
+  }
+
+  @media (max-width: 600px) {
+    .bus-schema { flex-direction: column; }
+    .bus-line { width: 100%; height: 8px; margin: 8px 0; }
+    .timing-label { width: 60px; font-size: 10px; }
+    .cell { min-width: 18px; height: 26px; font-size: 9px; }
+    header h1 { font-size: 18px; }
+    .theme-btn { position: static; margin-top: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔧 Архитектура аппаратных средств</h1>
+  <p>Интерактивный стенд • от вентиля до шины</p>
+  <button class="theme-btn" onclick="toggleTheme()">🌓 Тема</button>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="gates">1. Вентили</button>
+  <button class="tab" data-tab="hierarchy">2. Иерархия CPU</button>
+  <button class="tab" data-tab="neumann">3. Фон Нейман</button>
+  <button class="tab" data-tab="flynn">4. Классификация Флинна</button>
+  <button class="tab" data-tab="memory">5. Иерархия памяти</button>
+  <button class="tab" data-tab="schema">6. Шины</button>
+  <button class="tab" data-tab="timing">7. Временная диаграмма</button>
+  <button class="tab" data-tab="practice">8. Практикум</button>
+  <button class="tab" data-tab="journal">9. Журнал</button>
+</nav>
+
+<div class="container">
+
+  <!-- ================= 1. ВЕНТИЛИ ================= -->
+  <div class="panel active" id="gates">
+    <div class="card">
+      <h2>1. Логические вентили — операции, застывшие в железе</h2>
+      <p style="font-size:13px;color:var(--subtext);">
+        Переключайте входы A и B — выход обновляется мгновенно.
+        Таблица истинности подсвечивает текущую комбинацию.
+      </p>
+      <div class="grid grid-3" id="gateContainer"></div>
+    </div>
+
+    <div class="card green">
+      <h2>🔧 Полусумматор из вентилей</h2>
+      <p style="font-size:13px;color:var(--subtext);">
+        Складывает два бита A и B. Сумма S = A ⊕ B, перенос C = A · B.
+      </p>
+      <div class="grid grid-2" style="margin-top:14px;">
+        <div class="gate-box">
+          <div style="font-weight:600;color:var(--yellow);">Входы</div>
+          <div class="gate-inputs">
+            <label><input type="checkbox" id="hs-a" onchange="updateHalfAdder()"> A</label>
+            <label><input type="checkbox" id="hs-b" onchange="updateHalfAdder()"> B</label>
+          </div>
+        </div>
+        <div class="gate-box">
+          <div style="font-weight:600;color:var(--yellow);">Выходы</div>
+          <div style="display:flex;gap:14px;">
+            <div style="text-align:center;">
+              <div style="font-size:11px;color:var(--subtext);">Сумма S</div>
+              <div class="gate-out" id="hs-s">0</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:11px;color:var(--subtext);">Перенос C</div>
+              <div class="gate-out" id="hs-c">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="hs-explain" class="result" style="display:none;"></div>
+      <div class="note">
+        <b>Формулы:</b> <code>S = A ⊕ B</code> &nbsp; <code>C = A · B</code><br>
+        1 + 1 = 10 (S=0, C=1 — перенос в следующий разряд).
+      </div>
+    </div>
+
+    <div class="card mauve">
+      <h2>💾 RS-триггер — ячейка памяти на 1 бит</h2>
+      <p style="font-size:13px;color:var(--subtext);">
+        S=1 — запомнить 1. R=1 — сбросить в 0. Оба в 0 — значение сохраняется (это и есть память).
+      </p>
+      <div class="grid grid-2" style="margin-top:14px;">
+        <div class="gate-box">
+          <div style="font-weight:600;color:var(--yellow);">Управление</div>
+          <div class="gate-inputs">
+            <label><input type="checkbox" id="trig-s" onchange="updateTrigger()"> S (Set)</label>
+            <label><input type="checkbox" id="trig-r" onchange="updateTrigger()"> R (Reset)</label>
+          </div>
+          <button class="ghost" onclick="resetTrigger()">Сбросить</button>
+        </div>
+        <div class="gate-box">
+          <div style="font-weight:600;color:var(--yellow);">Хранимое значение Q</div>
+          <div class="gate-out" id="trig-q" style="font-size:32px;">0</div>
+          <div id="trig-state" style="font-size:12px;color:var(--subtext);">Состояние: 0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 2. ИЕРАРХИЯ ================= -->
+  <div class="panel" id="hierarchy">
+    <div class="card">
+      <h2>2. Иерархия: от вентиля к процессору</h2>
+      <p style="font-size:13px;color:var(--subtext);">Нажмите на уровень — раскроется состав.</p>
+      <div class="hierarchy" id="hierarchyContainer"></div>
+    </div>
+    <div class="card green">
+      <h2>🧮 Что делает каждый узел</h2>
+      <table>
+        <tr><th>Узел</th><th>Функция</th><th>Собран из</th></tr>
+        <tr><td><b>Сумматор</b></td><td>Складывает двоичные числа</td><td>И, ИЛИ, XOR</td></tr>
+        <tr><td><b>Мультиплексор</b></td><td>Выбирает один из N входов</td><td>И, ИЛИ, НЕ</td></tr>
+        <tr><td><b>Дешифратор</b></td><td>Код → номер выхода</td><td>И, НЕ</td></tr>
+        <tr><td><b>Шифратор</b></td><td>Номер → код</td><td>ИЛИ</td></tr>
+        <tr><td><b>Компаратор</b></td><td>Сравнивает два числа</td><td>XOR, И, НЕ</td></tr>
+        <tr><td><b>Триггер</b></td><td>Хранит 1 бит</td><td>И-НЕ / ИЛИ-НЕ</td></tr>
+        <tr><td><b>Регистр</b></td><td>Хранит N бит</td><td>N триггеров</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= 3. ФОН НЕЙМАН ================= -->
+  <div class="panel" id="neumann">
+    <div class="card">
+      <h2>3. Архитектура фон Неймана (1945)</h2>
+      <p style="font-size:13px;color:var(--subtext);">Нажмите на каждый принцип.</p>
+      <div class="grid grid-3" id="neumannContainer"></div>
+    </div>
+    <div class="card yellow">
+      <h2>🔓 Открытая архитектура (IBM, 1981)</h2>
+      <p style="font-size:13px;color:var(--subtext);">
+        IBM опубликовала спецификации разъёмов и шин — любой производитель мог выпускать совместимые комплектующие.
+        Компьютер стал модульным конструктором.
+      </p>
+      <div class="note">
+        <b>Кейс:</b> ускорить рабочую станцию без покупки нового ПК — заменить узкое место
+        (ОЗУ, SSD, видеокарта).
+      </div>
+    </div>
+    <div class="card sky">
+      <h2>🚌 Магистрально-модульный принцип</h2>
+      <p style="font-size:13px;color:var(--subtext);">Общая магистраль из трёх шин.</p>
+      <div class="grid grid-3" style="margin-top:12px;">
+        <div class="flynn-card" style="border-top-color:var(--accent);">
+          <div class="flynn-abbr" style="color:var(--accent);font-size:15px;">Шина данных</div>
+          <div class="flynn-desc">Передаёт сами данные</div>
+        </div>
+        <div class="flynn-card" style="border-top-color:var(--yellow);">
+          <div class="flynn-abbr" style="color:var(--yellow);font-size:15px;">Шина адреса</div>
+          <div class="flynn-desc">Указывает ячейку/устройство</div>
+        </div>
+        <div class="flynn-card" style="border-top-color:var(--green);">
+          <div class="flynn-abbr" style="color:var(--green);font-size:15px;">Шина управления</div>
+          <div class="flynn-desc">Сигналы «читать», «писать», «жди»</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 4. ФЛИНН ================= -->
+  <div class="panel" id="flynn">
+    <div class="card">
+      <h2>4. Классификация Флинна</h2>
+      <p style="font-size:13px;color:var(--subtext);">Нажмите на карточку — узнаете примеры.</p>
+      <div class="flynn-grid" id="flynnContainer"></div>
+      <div id="flynnDetail" class="result" style="display:none;"></div>
+    </div>
+    <div class="card green">
+      <h2>🧠 Мини-квиз</h2>
+      <div id="quizContainer"></div>
+      <button class="green" onclick="checkQuiz()">Проверить</button>
+      <button class="ghost" onclick="resetQuiz()">Сбросить</button>
+      <div id="quizResult" class="result" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- ================= 5. ПАМЯТЬ ================= -->
+  <div class="panel" id="memory">
+    <div class="card">
+      <h2>5. Иерархия памяти</h2>
+      <p style="font-size:13px;color:var(--subtext);">Нажмите на уровень.</p>
+      <div class="mem-pyramid" id="memPyramid"></div>
+      <div id="memDetail" class="result" style="display:none;"></div>
+    </div>
+    <div class="card yellow">
+      <h2>🤔 Почему регистры крошечные, а ОЗУ — гигабайты?</h2>
+      <p style="font-size:13px;color:var(--subtext);">
+        1 бит регистра = триггер = несколько вентилей. Быстро, но «дорого» по площади.
+        ОЗУ проще и плотнее — бит дешевле, поэтому её много, но она медленнее.
+      </p>
+      <div class="note">
+        <b>Ошибка:</b> «регистры и ОЗУ — одно и то же, только разного размера».<br>
+        <b>Правильно:</b> разная природа — триггеры в CPU vs микросхемы ОЗУ.
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 6. ШИНЫ ================= -->
+  <div class="panel" id="schema">
+    <div class="card">
+      <h2>6. Схема системной шины</h2>
+      <p style="font-size:13px;color:var(--subtext);">Нажмите «Запустить передачу».</p>
+      <div class="bus-schema">
+        <div class="node" id="n-cpu">CPU</div>
+        <div class="bus-line" id="bus1"></div>
+        <div class="node" id="n-l3">Кэш L3</div>
+        <div class="bus-line" id="bus2"></div>
+        <div class="node" id="n-ram">RAM</div>
+        <div class="bus-line" id="bus3"></div>
+        <div class="node" id="n-io">I/O</div>
+      </div>
+      <button onclick="startTransfer()">▶ Запустить</button>
+      <button class="green" onclick="quickTest()">⚡ Тест арбитража</button>
+      <div class="note">
+        <b>Арбитраж</b> — кто первый получит шину. Пока один передаёт, остальные ждут.
+      </div>
+    </div>
+
+    <div class="card green">
+      <h2>7. Калькулятор пропускной способности</h2>
+      <div class="form-grid">
+        <label>Частота (МГц)<input type="number" id="freq" value="1600" min="1"></label>
+        <label>Разрядность (бит)
+          <select id="width">
+            <option value="8">8</option><option value="16">16</option>
+            <option value="32">32</option><option value="64" selected>64</option>
+            <option value="128">128</option>
+          </select>
+        </label>
+        <label>Тип передачи
+          <select id="mult">
+            <option value="1">SDR (×1)</option>
+            <option value="2" selected>DDR (×2)</option>
+            <option value="4">QDR (×4)</option>
+          </select>
+        </label>
+        <label>Название<input type="text" id="busName" value="FSB"></label>
+      </div>
+      <button onclick="calcBW()">Рассчитать</button>
+      <button class="green" onclick="saveCalc()">💾 В журнал</button>
+      <div class="result" id="bwResult" style="display:none;"></div>
+      <div class="note">
+        <b>Формулы:</b><br>
+        <code>BW (МБ/с) = f × w × m / 8</code><br>
+        <code>BW (ГБ/с) = BW (МБ/с) / 1024</code>
+      </div>
+    </div>
+
+    <div class="card yellow">
+      <h2>📊 Сравнение шин</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Шина</th><th>Тип</th><th>Разрядность</th><th>Частота</th><th>Пропускная</th><th>Применение</th></tr></thead>
+          <tbody>
+            <tr><td>ISA</td><td><span class="badge par">Параллельная</span></td><td>16 бит</td><td>8 МГц</td><td class="num">16 МБ/с</td><td>Старые ПК</td></tr>
+            <tr><td>PCI</td><td><span class="badge par">Параллельная</span></td><td>32 бит</td><td>33 МГц</td><td class="num">133 МБ/с</td><td>Платы расширения</td></tr>
+            <tr><td>AGP 8x</td><td><span class="badge par">Параллельная</span></td><td>32 бит</td><td>66 МГц</td><td class="num">2.1 ГБ/с</td><td>Старые GPU</td></tr>
+            <tr><td>FSB</td><td><span class="badge par">Параллельная</span></td><td>64 бит</td><td>1600 МГц</td><td class="num">12.8 ГБ/с</td><td>Intel до Core 2</td></tr>
+            <tr><td>QPI</td><td><span class="badge seq">Последовательная</span></td><td>20 бит × 2</td><td>6.4 ГТ/с</td><td class="num">25.6 ГБ/с</td><td>Intel Nehalem+</td></tr>
+            <tr><td>HyperTransport 3.1</td><td><span class="badge seq">Последовательная</span></td><td>32 бит × 2</td><td>3.2 ГГц</td><td class="num">41.6 ГБ/с</td><td>AMD</td></tr>
+            <tr><td>DMI 3.0</td><td><span class="badge seq">Последовательная</span></td><td>8 бит × 2</td><td>8 ГТ/с</td><td class="num">8 ГБ/с</td><td>CPU ↔ чипсет</td></tr>
+            <tr><td>PCIe 4.0 x16</td><td><span class="badge seq">Последовательная</span></td><td>1 бит × 16</td><td>16 ГТ/с</td><td class="num">32 ГБ/с</td><td>GPU, NVMe</td></tr>
+            <tr><td>PCIe 5.0 x16</td><td><span class="badge seq">Последовательная</span></td><td>1 бит × 16</td><td>32 ГТ/с</td><td class="num">64 ГБ/с</td><td>Современные GPU</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <b>Вывод:</b> последовательные шины вытеснили параллельные из-за перекоса сигнала (skew)
+        на высоких частотах.
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 7. TIMING ================= -->
+  <div class="panel" id="timing">
+    <div class="card">
+      <h2>8. Временная диаграмма цикла шины</h2>
+      <p style="font-size:13px;color:var(--subtext);">Такт за тактом при чтении из памяти.</p>
+      <button onclick="runTiming()">▶ Запустить цикл чтения</button>
+      <div class="timing" id="timingChart">
+        <div class="timing-row"><div class="timing-label">CLK</div><div class="timing-cells" id="row-clk"></div></div>
+        <div class="timing-row"><div class="timing-label">Адрес</div><div class="timing-cells" id="row-addr"></div></div>
+        <div class="timing-row"><div class="timing-label">Чтение</div><div class="timing-cells" id="row-read"></div></div>
+        <div class="timing-row"><div class="timing-label">Данные</div><div class="timing-cells" id="row-data"></div></div>
+        <div class="timing-row"><div class="timing-label">Готово</div><div class="timing-cells" id="row-ack"></div></div>
+      </div>
+      <div class="note">
+        <b>Фазы:</b> арбитраж → адресация → чтение → данные → ACK.
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 8. ПРАКТИКУМ ================= -->
+  <div class="panel" id="practice">
+    <div class="card">
+      <h2>9. Практикум: 28 заданий</h2>
+      <p style="font-size:13px;color:var(--subtext);">
+        Порядок заданий случайный при каждой загрузке. Ответы сохраняются автоматически.
+        Можно сбросить или перемешать заново.
+      </p>
+      <div class="progress-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <b>Прогресс</b>
+          <span id="practice-score" style="color:var(--yellow);font-weight:bold;">0 / 0</span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar" id="practice-bar"></div></div>
+      </div>
+      <button class="ghost" onclick="shuffleAndResetPractice()">🔀 Перемешать заново</button>
+      <button class="red" onclick="resetPractice()">↻ Сбросить прогресс</button>
+      <button class="green" onclick="finishPractice()">🎓 Завершить и получить оценку</button>
+    </div>
+
+    <div class="card green">
+      <h2>📐 Блок 1. Расчётные задачи</h2>
+      <div id="calcTasks"></div>
+    </div>
+    <div class="card yellow">
+      <h2>💼 Блок 2. Кейсы администратора</h2>
+      <div id="caseTasks"></div>
+    </div>
+    <div class="card mauve">
+      <h2>🔍 Блок 3. Найди ошибку</h2>
+      <div id="errorTasks"></div>
+    </div>
+    <div class="card sky">
+      <h2>🧠 Блок 4. Открытые вопросы</h2>
+      <div id="openTasks"></div>
+    </div>
+    <div class="card red">
+      <h2>🎯 Блок 5. Итоговая оценка</h2>
+      <div id="finalResult" style="font-size:15px;color:var(--subtext);">
+        Выполните задания и нажмите «Завершить».
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 9. ЖУРНАЛ ================= -->
+  <div class="panel" id="journal">
+    <div class="card">
+      <h2>10. Журнал опытов</h2>
+      <p style="font-size:13px;color:var(--subtext);">Автоматически сохраняется. Можно фильтровать и экспортировать.</p>
+      <div class="journal-stats">
+        <div class="stat"><div class="stat-val" id="stat-total">0</div><div class="stat-lbl">Всего</div></div>
+        <div class="stat"><div class="stat-val" id="stat-calc">0</div><div class="stat-lbl">Расчётов</div></div>
+        <div class="stat"><div class="stat-val" id="stat-quiz">0</div><div class="stat-lbl">Квизов</div></div>
+        <div class="stat"><div class="stat-val" id="stat-practice">0</div><div class="stat-lbl">Практикум</div></div>
+      </div>
+      <div class="filter-row">
+        <input type="text" id="journalSearch" placeholder="🔍 Поиск..." oninput="renderJournal()">
+        <select id="journalFilter" onchange="renderJournal()">
+          <option value="">Все типы</option>
+          <option value="Расчёт BW">Расчёт BW</option>
+          <option value="Арбитраж">Арбитраж</option>
+          <option value="Цикл шины">Цикл шины</option>
+          <option value="Квиз">Квиз</option>
+          <option value="Практикум">Практикум</option>
+        </select>
+      </div>
+      <button onclick="exportCSV()">⬇ CSV</button>
+      <button class="ghost" onclick="exportTXT()">📄 TXT-отчёт</button>
+      <button class="red" onclick="clearJournal()">🗑 Очистить</button>
+      <div class="table-wrap" style="margin-top:14px;">
+        <table id="journalTable">
+          <thead><tr><th>#</th><th>Время</th><th>Опыт</th><th>Объект</th><th>Параметры</th><th>Результат</th></tr></thead>
+          <tbody id="journalBody">
+            <tr><td colspan="6" style="text-align:center;color:var(--dim);">Журнал пуст</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============ ТЕМА ============ */
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
+}
+if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
+
+/* ============ ВКЛАДКИ ============ */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+  };
+});
+
+/* ============ УТИЛИТЫ ============ */
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function downloadFile(name, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ============ ЖУРНАЛ ============ */
+let journal = [];
+let journalCounter = 0;
+let stats = { calc: 0, quiz: 0, practice: 0, other: 0 };
+
+function loadJournal() {
+  try {
+    const saved = localStorage.getItem('journal');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      journal = parsed.journal || [];
+      journalCounter = parsed.counter || 0;
+      stats = parsed.stats || stats;
+    }
+  } catch(e) { console.warn('Не удалось загрузить журнал'); }
+}
+
+function saveJournal() {
+  try {
+    localStorage.setItem('journal', JSON.stringify({ journal, counter: journalCounter, stats }));
+  } catch(e) {}
+}
+
+function addToJournal(type, obj, params, result) {
+  journalCounter++;
+  journal.push({
+    id: journalCounter,
+    time: new Date().toLocaleTimeString('ru-RU'),
+    type, obj, params, result
+  });
+  if (type === 'Расчёт BW') stats.calc++;
+  else if (type === 'Квиз') stats.quiz++;
+  else if (type === 'Практикум') stats.practice++;
+  else stats.other++;
+  renderJournal(); updateStats(); saveJournal();
+}
+
+function updateStats() {
+  document.getElementById('stat-total').textContent = journal.length;
+  document.getElementById('stat-calc').textContent = stats.calc;
+  document.getElementById('stat-quiz').textContent = stats.quiz;
+  document.getElementById('stat-practice').textContent = stats.practice;
+}
+
+function renderJournal() {
+  const body = document.getElementById('journalBody');
+  const search = (document.getElementById('journalSearch').value || '').toLowerCase();
+  const filter = document.getElementById('journalFilter').value;
+  let items = journal.filter(e => {
+    if (filter && e.type !== filter) return false;
+    if (search) {
+      const blob = (e.type + e.obj + e.params + e.result).toLowerCase();
+      if (!blob.includes(search)) return false;
+    }
+    return true;
+  });
+  if (items.length === 0) {
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--dim);">Ничего не найдено</td></tr>';
+    return;
+  }
+  body.innerHTML = items.map(e => `
+    <tr>
+      <td>${e.id}</td><td>${e.time}</td><td>${e.type}</td>
+      <td><b>${e.obj}</b></td>
+      <td style="font-size:12px;color:var(--subtext);">${e.params}</td>
+      <td style="color:var(--green);">${e.result}</td>
+    </tr>
+  `).join('');
+}
+
+function clearJournal() {
+  if (!confirm('Очистить весь журнал?')) return;
+  journal = []; journalCounter = 0;
+  stats = { calc: 0, quiz: 0, practice: 0, other: 0 };
+  renderJournal(); updateStats(); saveJournal();
+}
+
+function exportCSV() {
+  if (journal.length === 0) { alert('Журнал пуст'); return; }
+  const header = 'ID;Время;Опыт;Объект;Параметры;Результат\n';
+  const rows = journal.map(e => `${e.id};${e.time};${e.type};${e.obj};${e.params};${e.result}`).join('\n');
+  downloadFile('journal.csv', '\uFEFF' + header + rows, 'text/csv;charset=utf-8');
+}
+
+function exportTXT() {
+  if (journal.length === 0) { alert('Журнал пуст'); return; }
+  let txt = 'ОТЧЁТ ПО ЛАБОРАТОРНОЙ РАБОТЕ\nАрхитектура аппаратных средств\n';
+  txt += 'Дата: ' + new Date().toLocaleString('ru-RU') + '\n' + '='.repeat(70) + '\n\n';
+  journal.forEach(e => {
+    txt += `[${e.id}] ${e.time} | ${e.type}\n`;
+    txt += `  Объект: ${e.obj}\n  Параметры: ${e.params}\n  Результат: ${e.result}\n\n`;
+  });
+  txt += '='.repeat(70) + '\nВсего: ' + journal.length + '\n';
+  downloadFile('report.txt', txt, 'text/plain;charset=utf-8');
+}
+
+/* ============ ВЕНТИЛИ ============ */
+const gates = [
+  { name: 'И (AND)', symbol: '&', calc: (a, b) => a && b, color: 'var(--accent)',
+    truth: [[0,0,0],[0,1,0],[1,0,0],[1,1,1]] },
+  { name: 'ИЛИ (OR)', symbol: '≥1', calc: (a, b) => a || b, color: 'var(--green)',
+    truth: [[0,0,0],[0,1,1],[1,0,1],[1,1,1]] },
+  { name: 'НЕ (NOT)', symbol: '1', calc: (a) => !a, single: true, color: 'var(--red)',
+    truth: [[0,1],[1,0]] },
+  { name: 'И-НЕ (NAND)', symbol: '&', calc: (a, b) => !(a && b), color: 'var(--yellow)',
+    truth: [[0,0,1],[0,1,1],[1,0,1],[1,1,0]] },
+  { name: 'ИЛИ-НЕ (NOR)', symbol: '≥1', calc: (a, b) => !(a || b), color: 'var(--mauve)',
+    truth: [[0,0,1],[0,1,0],[1,0,0],[1,1,0]] },
+  { name: 'XOR', symbol: '=1', calc: (a, b) => a !== b, color: 'var(--peach)',
+    truth: [[0,0,0],[0,1,1],[1,0,1],[1,1,0]] }
+];
+
+function renderGates() {
+  document.getElementById('gateContainer').innerHTML = gates.map((g, i) => `
+    <div class="gate-box">
+      <div style="font-weight:600;color:${g.color};font-size:14px;">${g.name}</div>
+      <div style="font-family:monospace;font-size:24px;color:var(--subtext);">${g.symbol}</div>
+      <div class="gate-inputs">
+        <label><input type="checkbox" id="g${i}-a" onchange="updateGate(${i})"> A</label>
+        ${g.single ? '' : `<label><input type="checkbox" id="g${i}-b" onchange="updateGate(${i})"> B</label>`}
+      </div>
+      <div class="gate-out out-0" id="g${i}-out">0</div>
+      <table style="font-size:11px;margin-top:6px;">
+        <tr><th>A</th>${g.single ? '' : '<th>B</th>'}<th>Y</th></tr>
+        ${g.truth.map(row => `<tr data-row="${row.slice(0,-1).join('')}">
+          ${row.slice(0,-1).map(v => `<td>${v}</td>`).join('')}
+          <td style="color:var(--yellow);font-weight:bold;">${row[row.length-1]}</td>
+        </tr>`).join('')}
+      </table>
+    </div>
+  `).join('');
+}
+
+function updateGate(i) {
+  const g = gates[i];
+  const a = document.getElementById(`g${i}-a`).checked ? 1 : 0;
+  const b = g.single ? 0 : (document.getElementById(`g${i}-b`).checked ? 1 : 0);
+  const out = g.single ? (g.calc(a) ? 1 : 0) : (g.calc(a, b) ? 1 : 0);
+  const outEl = document.getElementById(`g${i}-out`);
+  outEl.textContent = out;
+  outEl.className = 'gate-out ' + (out ? 'out-1' : 'out-0');
+  const table = outEl.closest('.gate-box').querySelector('table');
+  table.querySelectorAll('tr[data-row]').forEach(tr => tr.style.background = '');
+  const key = g.single ? String(a) : String(a) + String(b);
+  const row = table.querySelector(`tr[data-row="${key}"]`);
+  if (row) row.style.background = 'rgba(137,180,250,.2)';
+}
+
+/* Полусумматор */
+function updateHalfAdder() {
+  const a = document.getElementById('hs-a').checked ? 1 : 0;
+  const b = document.getElementById('hs-b').checked ? 1 : 0;
+  const s = a ^ b, c = a & b;
+  const sEl = document.getElementById('hs-s');
+  const cEl = document.getElementById('hs-c');
+  sEl.textContent = s; sEl.className = 'gate-out ' + (s ? 'out-1' : 'out-0');
+  cEl.textContent = c; cEl.className = 'gate-out ' + (c ? 'out-1' : 'out-0');
+  const ex = document.getElementById('hs-explain');
+  ex.style.display = 'block';
+  ex.innerHTML = `${a} + ${b} = ${c}${s}
+    <div class="formula">S = ${a} ⊕ ${b} = ${s} | C = ${a} · ${b} = ${c}</div>`;
+}
+
+/* Триггер */
+let triggerState = 0;
+function updateTrigger() {
+  const s = document.getElementById('trig-s').checked ? 1 : 0;
+  const r = document.getElementById('trig-r').checked ? 1 : 0;
+  if (s && r) {
+    alert('Запрещённая комбинация: S=1 и R=1');
+    document.getElementById('trig-s').checked = false;
+    document.getElementById('trig-r').checked = false;
+    return;
+  }
+  if (s) triggerState = 1;
+  if (r) triggerState = 0;
+  const q = document.getElementById('trig-q');
+  q.textContent = triggerState;
+  q.className = 'gate-out ' + (triggerState ? 'out-1' : 'out-0');
+  document.getElementById('trig-state').textContent = 'Состояние: ' + triggerState;
+}
+function resetTrigger() {
+  triggerState = 0;
+  document.getElementById('trig-s').checked = false;
+  document.getElementById('trig-r').checked = false;
+  const q = document.getElementById('trig-q');
+  q.textContent = '0'; q.className = 'gate-out out-0';
+  document.getElementById('trig-state').textContent = 'Состояние: 0';
+}
+
+/* ============ ИЕРАРХИЯ ============ */
+const hierarchy = [
+  { title: '1. Вентили', sub: 'операция в железе', items: ['И (AND)','ИЛИ (OR)','НЕ (NOT)','И-НЕ (NAND)','ИЛИ-НЕ (NOR)','XOR'] },
+  { title: '2. Узлы', sub: 'собраны из вентилей', items: ['Сумматор','Мультиплексор','Дешифратор','Шифратор','Компаратор','Триггер','Регистр'] },
+  { title: '3. Блоки', sub: 'собраны из узлов', items: ['АЛУ','Устройство управления','Регистровый файл','Кэш L1'] },
+  { title: '4. Процессор (CPU)', sub: 'собран из блоков', items: ['Ядра','Кэш L2/L3','Контроллер памяти','Шины QPI/DMI'] }
+];
+
+function renderHierarchy() {
+  const c = document.getElementById('hierarchyContainer');
+  c.innerHTML = hierarchy.map((l, i) => `
+    <div class="level" onclick="this.classList.toggle('expanded')">
+      <div class="level-num">${i+1}</div>
+      <div style="flex:1;">
+        <div class="level-title">${l.title}</div>
+        <div class="level-sub">${l.sub}</div>
+      </div>
+      <div style="color:var(--subtext);">▼</div>
+    </div>
+  `).join('');
+  document.querySelectorAll('#hierarchyContainer .level').forEach((el, i) => {
+    const items = document.createElement('div');
+    items.className = 'level-items';
+    items.innerHTML = hierarchy[i].items.map(x => `<span>${x}</span>`).join('');
+    el.appendChild(items);
+  });
+}
+
+/* ============ ФОН НЕЙМАН ============ */
+const neumann = [
+  { title: 'Программа в памяти', desc: 'Программа хранится вместе с данными. CPU берёт команды оттуда же, откуда и числа.', color: 'var(--accent)' },
+  { title: 'Однородность памяти', desc: 'Команда и данные закодированы одинаково — двоично. Различаются по использованию.', color: 'var(--green)' },
+  { title: 'Последовательное выполнение', desc: 'Команды идут одна за другой, пока переход не изменит порядок. Отсюда универсальность.', color: 'var(--yellow)' }
+];
+
+function renderNeumann() {
+  document.getElementById('neumannContainer').innerHTML = neumann.map(n => `
+    <div class="flynn-card" style="border-top-color:${n.color};" onclick="this.classList.toggle('selected')">
+      <div class="flynn-abbr" style="color:${n.color};font-size:15px;">${n.title}</div>
+      <div class="flynn-desc" style="margin-top:8px;">${n.desc}</div>
+    </div>
+  `).join('');
+}
+
+/* ============ ФЛИНН ============ */
+const flynn = [
+  { abbr: 'SISD', name: 'Single Instruction, Single Data', desc: 'Один поток команд, один данных.', example: 'Пример: одноядерный ПК, 8086, 286.' },
+  { abbr: 'SIMD', name: 'Single Instruction, Multiple Data', desc: 'Одна команда — множество данных.', example: 'Пример: GPU, MMX/SSE/AVX.' },
+  { abbr: 'MISD', name: 'Multiple Instruction, Single Data', desc: 'Несколько команд — одни данные. Редко.', example: 'Пример: системы с дублированием для отказоустойчивости.' },
+  { abbr: 'MIMD', name: 'Multiple Instruction, Multiple Data', desc: 'Много команд — много данных.', example: 'Пример: многоядерные CPU, кластеры.' }
+];
+
+function renderFlynn() {
+  document.getElementById('flynnContainer').innerHTML = flynn.map((f, i) => `
+    <div class="flynn-card" onclick="showFlynn(${i}, this)">
+      <div class="flynn-abbr">${f.abbr}</div>
+      <div class="flynn-name">${f.name}</div>
+      <div class="flynn-desc">${f.desc}</div>
+    </div>
+  `).join('');
+}
+
+function showFlynn(i, el) {
+  document.querySelectorAll('#flynnContainer .flynn-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  const f = flynn[i];
+  const d = document.getElementById('flynnDetail');
+  d.style.display = 'block';
+  d.innerHTML = `<b>${f.abbr}</b> — ${f.name}<br><br>${f.desc}<br><br>${f.example}`;
+}
+
+/* ============ КВИЗ ============ */
+const quizQuestions = [
+  { q: 'Видеокарта обрабатывает тысячи пикселей одной операцией. Тип по Флинну?',
+    opts: ['SISD','SIMD','MISD','MIMD'], correct: 1 },
+  { q: 'Обычный одноядерный процессор старого ПК?',
+    opts: ['SISD','SIMD','MISD','MIMD'], correct: 0 },
+  { q: 'Серверный кластер, каждый узел со своей программой?',
+    opts: ['SISD','SIMD','MISD','MIMD'], correct: 3 },
+  { q: 'Какая архитектура хранит программу в той же памяти, что и данные?',
+    opts: ['Гарвардская','Фон Неймана','Флинна','Открытая'], correct: 1 },
+  { q: 'Техническая основа открытой архитектуры?',
+    opts: ['Тактовая частота','Магистрально-модульный принцип','Кэш L3','Конвейер'], correct: 1 }
+];
+
+let quizAnswers = {};
+function renderQuiz() {
+  document.getElementById('quizContainer').innerHTML = quizQuestions.map((q, i) => `
+    <div class="quiz-q">
+      <p>${i+1}. ${q.q}</p>
+      ${q.opts.map((o, j) => `
+        <label class="quiz-opt" id="q${i}-o${j}">
+          <input type="radio" name="q${i}" value="${j}" onchange="quizAnswers[${i}]=${j}"> ${o}
+        </label>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function checkQuiz() {
+  let correct = 0;
+  quizQuestions.forEach((q, i) => {
+    const ans = quizAnswers[i];
+    q.opts.forEach((_, j) => {
+      const el = document.getElementById(`q${i}-o${j}`);
+      el.classList.remove('correct', 'wrong');
+      if (j === q.correct) el.classList.add('correct');
+      else if (j === ans) el.classList.add('wrong');
+    });
+    if (ans === q.correct) correct++;
+  });
+  const res = document.getElementById('quizResult');
+  res.style.display = 'block';
+  res.innerHTML = `Правильно: ${correct} из ${quizQuestions.length} (${Math.round(correct/quizQuestions.length*100)}%)`;
+  addToJournal('Квиз', 'Классификация Флинна', `${quizQuestions.length} вопросов`, `${correct}/${quizQuestions.length}`);
+}
+
+function resetQuiz() {
+  quizAnswers = {};
+  document.querySelectorAll('.quiz-opt').forEach(el => el.classList.remove('correct', 'wrong'));
+  document.querySelectorAll('input[type=radio]').forEach(el => el.checked = false);
+  document.getElementById('quizResult').style.display = 'none';
+}
+
+/* ============ ПАМЯТЬ ============ */
+const memLevels = [
+  { cls: 'mem-reg', name: 'Регистры', info: '~КБ • на частоте CPU',
+    detail: 'Самый быстрый уровень внутри процессора. Собран из триггеров — 1 бит = несколько вентилей. Крошечный объём (килобайты), но максимальная скорость.' },
+  { cls: 'mem-cache', name: 'Кэш L1/L2/L3', info: 'МБ • ~1-30 тактов',
+    detail: 'Промежуточный буфер между регистрами и ОЗУ. L1 — самый быстрый и маленький, L3 — больше, но медленнее.' },
+  { cls: 'mem-ram', name: 'ОЗУ', info: 'ГБ • ~100-300 тактов',
+    detail: 'Отдельные микросхемы на плате. Проще и плотнее регистров — бит дешевле, поэтому её много. Но медленнее кэша.' },
+  { cls: 'mem-disk', name: 'SSD/HDD', info: 'ТБ • миллионы тактов',
+    detail: 'Энергонезависимая память. SSD быстрее HDD, но оба на порядки медленнее ОЗУ.' }
+];
+
+function renderMemory() {
+  document.getElementById('memPyramid').innerHTML = memLevels.map((m, i) => `
+    <div class="mem-level ${m.cls}" onclick="showMem(${i})">
+      <span>${m.name}</span>
+      <span class="mem-info">${m.info}</span>
+    </div>
+  `).join('');
+}
+
+function showMem(i) {
+  const d = document.getElementById('memDetail');
+  d.style.display = 'block';
+  d.innerHTML = `<b>${memLevels[i].name}</b> — ${memLevels[i].info}<br><br>${memLevels[i].detail}`;
+}
+
+/* ============ СХЕМА ============ */
+function startTransfer() {
+  const buses = ['bus1', 'bus2', 'bus3'];
+  const nodes = ['n-cpu', 'n-l3', 'n-ram', 'n-io'];
+  nodes.forEach(n => document.getElementById(n).classList.add('busy'));
+  buses.forEach((id, i) => {
+    const bus = document.getElementById(id);
+    bus.classList.add('active');
+    const packet = document.createElement('div');
+    packet.className = 'data-packet';
+    packet.style.animationDelay = (i * 0.3) + 's';
+    bus.appendChild(packet);
+    setTimeout(() => { bus.classList.remove('active'); packet.remove(); }, 2000);
+  });
+  setTimeout(() => nodes.forEach(n => document.getElementById(n).classList.remove('busy')), 2500);
+}
+
+function quickTest() {
+  const devices = ['CPU', 'DMA', 'GPU'];
+  const order = shuffle(devices);
+  const result = order.join(' → ');
+  addToJournal('Арбитраж', 'System Bus', '3 устройства', 'Порядок: ' + result);
+  alert('Тест арбитража!\nПорядок: ' + result);
+}
+
+/* ============ КАЛЬКУЛЯТОР ============ */
+function calcBW() {
+  const f = parseFloat(document.getElementById('freq').value);
+  const w = parseFloat(document.getElementById('width').value);
+  const m = parseFloat(document.getElementById('mult').value);
+  const name = document.getElementById('busName').value || 'Bus';
+  if (!f || f <= 0) { alert('Введите корректную частоту'); return null; }
+  const bwMBs = f * w * m / 8;
+  const bwGBs = bwMBs / 1024;
+  const resultBox = document.getElementById('bwResult');
+  resultBox.style.display = 'block';
+  resultBox.innerHTML = `
+    BW: ${bwMBs.toFixed(0)} МБ/с ≈ ${bwGBs.toFixed(2)} ГБ/с
+    <div class="formula">${f} × ${w} × ${m} / 8 = ${bwMBs.toFixed(0)} МБ/с</div>
+  `;
+  return { f, w, m, bwMBs, bwGBs, name };
+}
+
+function saveCalc() {
+  const r = calcBW();
+  if (!r) return;
+  addToJournal('Расчёт BW', r.name,
+    `f=${r.f} МГц, разряд=${r.w} бит, тип=${r.m===1?'SDR':r.m===2?'DDR':'QDR'}`,
+    `${r.bwMBs.toFixed(0)} МБ/с (${r.bwGBs.toFixed(2)} ГБ/с)`);
+  alert('Сохранено в журнал!');
+}
+
+/* ============ TIMING ============ */
+const TICKS = 8;
+function initTiming() {
+  ['clk', 'addr', 'read', 'data', 'ack'].forEach(r => {
+    const c = document.getElementById('row-' + r);
+    c.innerHTML = '';
+    for (let i = 0; i < TICKS; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (r === 'clk') { cell.textContent = i % 2 ? '▁' : '▔'; cell.classList.add('clk'); }
+      c.appendChild(cell);
+    }
+  });
+}
+
+function runTiming() {
+  initTiming();
+  const seq = [
+    [0, 'addr', 'on', 'A'], [1, 'read', 'on', 'R'], [2, 'read', 'on', ''],
+    [3, 'data', 'data', 'D'], [4, 'data', 'data', 'D'], [5, 'data', 'data', 'D'],
+    [6, 'ack', 'on', '✓'], [7, 'ack', 'on', '']
+  ];
+  seq.forEach(([tick, row, cls, text], idx) => {
+    setTimeout(() => {
+      const cell = document.getElementById('row-' + row).children[tick];
+      cell.classList.add(cls);
+      if (text) cell.textContent = text;
+    }, idx * 220);
+  });
+  setTimeout(() => addToJournal('Цикл шины', 'System Bus', '8 тактов', 'Чтение завершено'), 2200);
+}
+
+/* ============================================================
+   ПРАКТИКУМ — 28 заданий, случайный порядок
+   ============================================================ */
+
+/* ---------- БАНК ЗАДАЧ ---------- */
+
+// Блок 1: Расчётные (8 задач)
+const calcBank = [
+  { id: 'c1', text: 'Шина: частота 800 МГц, разрядность 32 бита, SDR (×1). Пропускная способность в МБ/с?',
+    answer: 3200, tolerance: 5, hint: '800 × 32 × 1 / 8', unit: 'МБ/с' },
+  { id: 'c2', text: 'DDR-шина: 1600 МГц, 64 бита. Сколько ГБ/с? (1 знак после запятой)',
+    answer: 25.0, tolerance: 0.5, hint: '1600 × 64 × 2 / 8 = ? МБ/с, потом /1024', unit: 'ГБ/с' },
+  { id: 'c3', text: 'PCIe 4.0 x16: 16 линий × 16 ГТ/с, 1 бит/передача. Приблизительно ГБ/с?',
+    answer: 32, tolerance: 3, hint: '16 × 16 × 1 / 8 = 32', unit: 'ГБ/с' },
+  { id: 'c4', text: 'Время одного такта при частоте 2 ГГц. Ответ в наносекундах (нс), 2 знака.',
+    answer: 0.5, tolerance: 0.05, hint: 'T = 1 / f. 2 ГГц = 2×10⁹ Гц', unit: 'нс' },
+  { id: 'c5', text: 'FSB: 1333 МГц, 64 бита, QDR (×4). Сколько ГБ/с? (1 знак)',
+    answer: 41.6, tolerance: 1, hint: '1333 × 64 × 4 / 8 = ? МБ/с, /1024', unit: 'ГБ/с' },
+  { id: 'c6', text: 'Шина имеет BW = 6400 МБ/с при частоте 800 МГц и разрядности 64 бита. Какой множитель (SDR/DDR/QDR)? Введите число.',
+    answer: 1, tolerance: 0.1, hint: 'm = BW × 8 / (f × w) = 6400×8 / (800×64)', unit: '×' },
+  { id: 'c7', text: 'DMI 3.0: 8 ГТ/с, 8 бит, DDR (×2). Сколько МБ/с?',
+    answer: 8000, tolerance: 100, hint: '8 × 8 × 2 / 8 × 1000 (ГТ/с → МТ/с)', unit: 'МБ/с' },
+  { id: 'c8', text: 'Тактовая частота 3.5 ГГц. Период такта в пикосекундах (пс), округлите до целого.',
+    answer: 286, tolerance: 10, hint: 'T = 1 / 3.5×10⁹ с = 0.286 нс = 286 пс', unit: 'пс' }
+];
+
+// Блок 2: Кейсы администратора (6 задач)
+const caseBank = [
+  { id: 'k1', text: 'Сотрудник: Excel тормозит с большими таблицами. ОЗУ 8 ГБ, HDD, Core i5. Что заменить первым?',
+    opts: ['Видеокарту', 'Заменить HDD на SSD', 'Добавить ОЗУ', 'Заменить процессор'], correct: 2,
+    explain: 'Узкое место — нехватка ОЗУ для больших таблиц.' },
+  { id: 'k2', text: 'Сервер БД: узкое место — обмен CPU ↔ чипсет. Какая шина за это отвечает в современных Intel?',
+    opts: ['FSB', 'DMI', 'PCIe 3.0 x1', 'USB 3.0'], correct: 1,
+    explain: 'DMI — последовательная шина CPU↔чипсет. FSB устарела.' },
+  { id: 'k3', text: 'Видеокарта в PCIe 4.0 x16. Сколько примерно ГБ/с?',
+    opts: ['~8 ГБ/с', '~16 ГБ/с', '~32 ГБ/с', '~64 ГБ/с'], correct: 2,
+    explain: 'PCIe 4.0 x16 ≈ 32 ГБ/с. PCIe 5.0 x16 ≈ 64 ГБ/с.' },
+  { id: 'k4', text: 'Программист обрабатывает изображения. Какой тип по Флинну оптимален?',
+    opts: ['SISD', 'SIMD', 'MISD', 'MIMD'], correct: 1,
+    explain: 'SIMD — одна команда применяется к множеству пикселей.' },
+  { id: 'k5', text: 'Нужно ускорить загрузку ОС и приложений. Что даст максимальный эффект?',
+    opts: ['Больше ОЗУ', 'SSD вместо HDD', 'Мощнее GPU', 'Больше ядер CPU'], correct: 1,
+    explain: 'Загрузка ОС ограничена скоростью накопителя. SSD даёт 5-10× прирост.' },
+  { id: 'k6', text: 'В сервере 4-канальный контроллер памяти. Какая шина НЕ используется для подключения планок ОЗУ?',
+    opts: ['DDR4', 'DDR5', 'PCIe', 'DIMM-канал'], correct: 2,
+    explain: 'PCIe — для плат расширения (GPU, NVMe). ОЗУ подключается по DDR-каналам.' }
+];
+
+// Блок 3: Найди ошибку (6 задач)
+const errorBank = [
+  { id: 'e1', claim: '«Регистры и ОЗУ — это одно и то же, только регистров меньше».',
+    opts: [
+      'Верно, оба хранят данные',
+      'Ошибка: разная природа — регистры это триггеры в CPU, ОЗУ — микросхемы',
+      'Ошибка: регистры не хранят данные',
+      'Ошибка: ОЗУ быстрее регистров'
+    ], correct: 1,
+    explain: 'Регистры — триггеры внутри CPU на его частоте. ОЗУ — отдельные микросхемы, медленнее.' },
+  { id: 'e2', claim: '«FSB быстрее QPI, потому что у неё больше разрядность».',
+    opts: [
+      'Верно, 64 бита больше 20',
+      'Ошибка: QPI последовательная, но работает на высокой частоте и потому быстрее',
+      'Ошибка: FSB и QPI — одно и то же',
+      'Верно, потому что FSB параллельная'
+    ], correct: 1,
+    explain: 'QPI быстрее: последовательная, с несколькими линиями и высокой частотой.' },
+  { id: 'e3', claim: '«MISD — самый распространённый тип, на нём работают все ПК».',
+    opts: [
+      'Верно, MISD везде',
+      'Ошибка: MISD редкий. Обычный ПК — SISD, многоядерный — MIMD',
+      'Ошибка: современные ПК — это SIMD',
+      'Верно, потому что у ПК много данных'
+    ], correct: 1,
+    explain: 'MISD — редкий (дублирование для отказоустойчивости). ПК — SISD/MIMD.' },
+  { id: 'e4', claim: '«В архитектуре фон Неймана команды и данные хранятся в разных типах памяти».',
+    opts: [
+      'Верно, команды в ПЗУ, данные в ОЗУ',
+      'Ошибка: они хранятся в одной памяти — это и есть принцип фон Неймана',
+      'Ошибка: команды не хранятся',
+      'Верно, так работает Гарвардская архитектура'
+    ], correct: 1,
+    explain: 'Принцип фон Неймана: программа в той же памяти, что и данные. Раздельно — у Гарварда.' },
+  { id: 'e5', claim: '«1 бит регистра дешевле, чем 1 бит ОЗУ, потому что регистры ближе к процессору».',
+    opts: [
+      'Верно, близость снижает цену',
+      'Ошибка: 1 бит регистра дороже — триггер из нескольких вентилей против плотной ячейки ОЗУ',
+      'Ошибка: цена не зависит от расположения',
+      'Верно, регистры дешевле'
+    ], correct: 1,
+    explain: 'Триггер = несколько транзисторов → дорого по площади. Ячейка ОЗУ плотнее → дешевле.' },
+  { id: 'e6', claim: '«Последовательные шины медленнее параллельных, потому что передают по одному биту».',
+    opts: [
+      'Верно, параллельные быстрее',
+      'Ошибка: последовательные позволяют поднять частоту и избежать перекоса сигнала, поэтому быстрее',
+      'Ошибка: последовательные не существуют',
+      'Верно, по одному биту — это медленно'
+    ], correct: 1,
+    explain: 'Параллельные ограничены skew. Последовательные работают на ГГц и в сумме быстрее.' }
+];
+
+// Блок 4: Открытые вопросы (8 задач)
+const openBank = [
+  { id: 'o1', q: 'Почему регистры процессора маленькие (КБ), хотя они самые быстрые?',
+    model: 'Один бит регистра — это триггер из нескольких вентилей (транзисторов). Быстро, но «дорого» по площади кристалла. ОЗУ плотнее → бит дешевле → её много.' },
+  { id: 'o2', q: 'Почему параллельные шины (FSB, PCI) уступили место последовательным (QPI, PCIe)?',
+    model: 'На высоких частотах в параллельных линиях возникает перекос сигнала (skew). Последовательные позволяют поднять частоту, использовать несколько линий и кодирование.' },
+  { id: 'o3', q: 'Как магистрально-модульный принцип связан с открытой архитектурой IBM PC?',
+    model: 'Магистраль — общая шина для любого модуля. IBM опубликовала спецификации — любой производитель мог выпускать совместимые устройства. Компьютер стал модульным конструктором.' },
+  { id: 'o4', q: 'Примеры применения всех четырёх типов по Флинну (SISD, SIMD, MISD, MIMD).',
+    model: 'SISD — одноядерный ПК. SIMD — GPU, SSE/AVX. MISD — системы с дублированием (авионика). MIMD — многоядерный CPU, кластер.' },
+  { id: 'o5', q: 'Что такое арбитраж шины и зачем он нужен?',
+    model: 'Арбитраж — механизм определения, какое устройство получает доступ к шине первым. Нужен, потому что шина одна, а устройств много — нужно избежать конфликтов.' },
+  { id: 'o6', q: 'Объясните три принципа архитектуры фон Неймана.',
+    model: '1) Программа хранится в памяти вместе с данными. 2) Память однородна: команды и данные — двоичные числа. 3) Программа выполняется последовательно.' },
+  { id: 'o7', q: 'Зачем нужен кэш, если есть регистры и ОЗУ?',
+    model: 'Кэш сглаживает разницу скоростей: регистры очень быстрые, ОЗУ медленное. Кэш хранит часто используемые данные ближе к CPU. L1 → L2 → L3 — иерархия.' },
+  { id: 'o8', q: 'Чем отличается комбинационная схема от схемы с памятью?',
+    model: 'Комбинационная: выход зависит только от текущих входов (сумматор, мультиплексор). С памятью: хранит состояние (триггер, регистр). Выход зависит от прошлых значений.' }
+];
+
+/* ---------- СОСТОЯНИЕ ПРАКТИКУМА ---------- */
+let practiceState = {};
+let totalTasks = 0;
+let shuffledCalc = [], shuffledCase = [], shuffledError = [], shuffledOpen = [];
+
+function shuffleArr(arr) { return shuffle(arr); }
+
+function initPractice(shuffleNow) {
+  if (shuffleNow !== false) {
+    shuffledCalc = shuffleArr(calcBank);
+    shuffledCase = shuffleArr(caseBank).map(t => ({ ...t, opts: shuffleArr(t.opts.map((o, i) => ({ o, i }))).map(x => x.o), correct: -1, _origOpts: t.opts, _origCorrect: t.correct }));
+    // Пересчитываем correct после перемешивания
+    shuffledCase = shuffleArr(caseBank).map(t => {
+      const pairs = t.opts.map((o, i) => ({ o, i }));
+      const mixed = shuffleArr(pairs);
+      const newCorrect = mixed.findIndex(p => p.i === t.correct);
+      return { ...t, opts: mixed.map(p => p.o), correct: newCorrect };
+    });
+    shuffledError = shuffleArr(errorBank).map(t => {
+      const pairs = t.opts.map((o, i) => ({ o, i }));
+      const mixed = shuffleArr(pairs);
+      const newCorrect = mixed.findIndex(p => p.i === t.correct);
+      return { ...t, opts: mixed.map(p => p.o), correct: newCorrect };
+    });
+    shuffledOpen = shuffleArr(openBank);
+  }
+  totalTasks = shuffledCalc.length + shuffledCase.length + shuffledError.length + shuffledOpen.length;
+  renderCalcTasks();
+  renderCaseTasks();
+  renderErrorTasks();
+  renderOpenTasks();
+  updateProgress();
+}
+
+function normalizeNum(str) { return parseFloat(String(str).replace(',', '.').trim()); }
+
+function markDone(taskId, resultText) {
+  practiceState[taskId] = { done: true, result: resultText };
+  updateProgress();
+  savePracticeState();
+}
+
+function savePracticeState() {
+  try { localStorage.setItem('practiceState', JSON.stringify(practiceState)); } catch(e) {}
+}
+
+function loadPracticeState() {
+  try {
+    const s = localStorage.getItem('practiceState');
+    if (s) practiceState = JSON.parse(s);
+  } catch(e) {}
+}
+
+function updateProgress() {
+  const done = Object.keys(practiceState).length;
+  document.getElementById('practice-score').textContent = `${done} / ${totalTasks}`;
+  const pct = totalTasks ? (done / totalTasks * 100) : 0;
+  document.getElementById('practice-bar').style.width = pct + '%';
+}
+
+/* ---------- БЛОК 1: РАСЧЁТНЫЕ ---------- */
+function renderCalcTasks() {
+  document.getElementById('calcTasks').innerHTML = shuffledCalc.map(t => {
+    const done = practiceState[t.id] ? `<span class="task-done">✓</span>` : '';
+    return `
+    <div class="quiz-q" id="task-${t.id}">
+      <p><span class="task-id">${t.id.toUpperCase()}</span>${t.text}${done}</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="in-${t.id}" placeholder="Ваш ответ" style="max-width:200px;">
+        <span style="color:var(--subtext);font-size:12px;">${t.unit}</span>
+        <button onclick="checkCalcTask('${t.id}')">Проверить</button>
+        <button class="ghost" onclick="showHint('${t.id}')">💡</button>
+      </div>
+      <div id="fb-${t.id}" style="margin-top:10px;font-size:13px;"></div>
+    </div>`;
+  }).join('');
+}
+
+function checkCalcTask(id) {
+  const t = calcBank.find(x => x.id === id);
+  const val = normalizeNum(document.getElementById('in-' + id).value);
+  const fb = document.getElementById('fb-' + id);
+  if (isNaN(val)) { fb.innerHTML = '<span style="color:var(--red);">⚠ Введите число</span>'; return; }
+  const diff = Math.abs(val - t.answer);
+  if (diff <= t.tolerance) {
+    fb.innerHTML = `<span style="color:var(--green);">✓ Верно! ${t.answer} ${t.unit}</span>`;
+    markDone(id, `${val} ${t.unit} (верно)`);
+    addToJournal('Практикум', 'Расчёт ' + id.toUpperCase(), t.text.slice(0, 50) + '...', `✓ ${val} ${t.unit}`);
+  } else {
+    fb.innerHTML = `<span style="color:var(--red);">✗ Неверно. Проверьте расчёт.</span>`;
+    addToJournal('Практикум', 'Расчёт ' + id.toUpperCase(), t.text.slice(0, 50) + '...', `✗ ${val} (ожидалось ${t.answer})`);
+  }
+}
+
+function showHint(id) {
+  const t = calcBank.find(x => x.id === id);
+  document.getElementById('fb-' + id).innerHTML = `<span style="color:var(--yellow);">💡 ${t.hint}</span>`;
+}
+
+/* ---------- БЛОК 2: КЕЙСЫ ---------- */
+function renderCaseTasks() {
+  document.getElementById('caseTasks').innerHTML = shuffledCase.map(t => {
+    const done = practiceState[t.id] ? `<span class="task-done">✓</span>` : '';
+    return `
+    <div class="quiz-q" id="task-${t.id}">
+      <p><span class="task-id">${t.id.toUpperCase()}</span>${t.text}${done}</p>
+      ${t.opts.map((o, j) => `
+        <label class="quiz-opt" id="${t.id}-o${j}">
+          <input type="radio" name="${t.id}" value="${j}" onchange="checkCaseTask('${t.id}', ${j})"> ${o}
+        </label>
+      `).join('')}
+      <div id="fb-${t.id}" style="margin-top:10px;font-size:13px;"></div>
+    </div>`;
+  }).join('');
+}
+
+function checkCaseTask(id, chosen) {
+  const t = shuffledCase.find(x => x.id === id);
+  const fb = document.getElementById('fb-' + id);
+  t.opts.forEach((_, j) => {
+    const el = document.getElementById(`${id}-o${j}`);
+    el.classList.remove('correct', 'wrong');
+    if (j === t.correct) el.classList.add('correct');
+    else if (j === chosen) el.classList.add('wrong');
+  });
+  if (chosen === t.correct) {
+    fb.innerHTML = `<span style="color:var(--green);">✓ Верно! ${t.explain}</span>`;
+    markDone(id, 'верно');
+    addToJournal('Практикум', 'Кейс ' + id.toUpperCase(), t.text.slice(0, 50) + '...', '✓ ' + t.opts[chosen]);
+  } else {
+    fb.innerHTML = `<span style="color:var(--red);">✗ Неверно. ${t.explain}</span>`;
+    addToJournal('Практикум', 'Кейс ' + id.toUpperCase(), t.text.slice(0, 50) + '...', '✗ ' + t.opts[chosen]);
+  }
+}
+
+/* ---------- БЛОК 3: НАЙДИ ОШИБКУ ---------- */
+function renderErrorTasks() {
+  document.getElementById('errorTasks').innerHTML = shuffledError.map(t => {
+    const done = practiceState[t.id] ? `<span class="task-done">✓</span>` : '';
+    return `
+    <div class="quiz-q" id="task-${t.id}">
+      <p><span class="task-id">${t.id.toUpperCase()}</span><span style="color:var(--yellow);">${t.claim}</span>${done}</p>
+      <p style="font-weight:normal;font-size:12.5px;color:var(--subtext);">Что не так?</p>
+      ${t.opts.map((o, j) => `
+        <label class="quiz-opt" id="${t.id}-o${j}">
+          <input type="radio" name="${t.id}" value="${j}" onchange="checkErrorTask('${t.id}', ${j})"> ${o}
+        </label>
+      `).join('')}
+      <div id="fb-${t.id}" style="margin-top:10px;font-size:13px;"></div>
+    </div>`;
+  }).join('');
+}
+
+function checkErrorTask(id, chosen) {
+  const t = shuffledError.find(x => x.id === id);
+  const fb = document.getElementById('fb-' + id);
+  t.opts.forEach((_, j) => {
+    const el = document.getElementById(`${id}-o${j}`);
+    el.classList.remove('correct', 'wrong');
+    if (j === t.correct) el.classList.add('correct');
+    else if (j === chosen) el.classList.add('wrong');
+  });
+  if (chosen === t.correct) {
+    fb.innerHTML = `<span style="color:var(--green);">✓ Верно! ${t.explain}</span>`;
+    markDone(id, 'верно');
+    addToJournal('Практикум', 'Ошибка ' + id.toUpperCase(), t.claim.slice(0, 50) + '...', '✓ верно');
+  } else {
+    fb.innerHTML = `<span style="color:var(--red);">✗ Неверно. ${t.explain}</span>`;
+    addToJournal('Практикум', 'Ошибка ' + id.toUpperCase(), t.claim.slice(0, 50) + '...', '✗ ошибка');
+  }
+}
+
+/* ---------- БЛОК 4: ОТКРЫТЫЕ ---------- */
+function renderOpenTasks() {
+  document.getElementById('openTasks').innerHTML = shuffledOpen.map(t => {
+    const done = practiceState[t.id] ? `<span class="task-done">✓</span>` : '';
+    return `
+    <div class="quiz-q" id="task-${t.id}">
+      <p><span class="task-id">${t.id.toUpperCase()}</span>${t.q}${done}</p>
+      <textarea id="in-${t.id}" placeholder="Ваш ответ..." rows="3"
+        style="width:100%;padding:10px;border-radius:7px;border:1px solid var(--card2);background:var(--bg2);color:var(--text);font-family:inherit;font-size:13px;resize:vertical;"></textarea>
+      <div style="margin-top:8px;">
+        <button onclick="showModel('${t.id}')">📖 Эталон</button>
+        <button class="green" onclick="selfMark('${t.id}', true)">✓ Зачесть</button>
+        <button class="red" onclick="selfMark('${t.id}', false)">✗ Не зачтено</button>
+      </div>
+      <div id="model-${t.id}" style="display:none;margin-top:10px;padding:10px;background:var(--bg2);border-left:3px solid var(--green);border-radius:6px;font-size:12.5px;color:var(--subtext);">
+        <b style="color:var(--text);">Эталон:</b><br>${t.model}
+      </div>
+      <div id="fb-${t.id}" style="margin-top:8px;font-size:13px;"></div>
+    </div>`;
+  }).join('');
+}
+
+function showModel(id) {
+  document.getElementById('model-' + id).style.display = 'block';
+}
+
+function selfMark(id, correct) {
+  const fb = document.getElementById('fb-' + id);
+  const t = openBank.find(x => x.id === id);
+  const ans = document.getElementById('in-' + id).value.trim();
+  if (ans.length < 20) {
+    fb.innerHTML = '<span style="color:var(--red);">⚠ Слишком короткий ответ</span>';
+    return;
+  }
+  if (correct) {
+    fb.innerHTML = '<span style="color:var(--green);">✓ Зачтено</span>';
+    markDone(id, 'зачтён');
+    addToJournal('Практикум', 'Открытый ' + id.toUpperCase(), t.q.slice(0, 50) + '...', '✓ зачтён');
+  } else {
+    fb.innerHTML = '<span style="color:var(--red);">✗ Не зачтено</span>';
+    addToJournal('Практикум', 'Открытый ' + id.toUpperCase(), t.q.slice(0, 50) + '...', '✗ не зачтён');
+  }
+}
+
+/* ---------- ИТОГ ---------- */
+function finishPractice() {
+  const done = Object.keys(practiceState).length;
+  const pct = Math.round(done / totalTasks * 100);
+  let mark, color, comment;
+  if (pct >= 90) { mark = '5 (отлично)'; color = 'var(--green)'; comment = 'Материал усвоен полностью.'; }
+  else if (pct >= 75) { mark = '4 (хорошо)'; color = 'var(--accent)'; comment = 'Небольшие пробелы.'; }
+  else if (pct >= 50) { mark = '3 (удовл.)'; color = 'var(--yellow)'; comment = 'Стоит повторить сложные темы.'; }
+  else { mark = '2 (неудовл.)'; color = 'var(--red)'; comment = 'Вернитесь к теории.'; }
+
+  document.getElementById('finalResult').innerHTML = `
+    <div style="font-size:20px;color:${color};font-weight:bold;margin-bottom:8px;">Оценка: ${mark}</div>
+    <div>Выполнено: <b>${done} из ${totalTasks}</b> (${pct}%)</div>
+    <div style="margin-top:10px;color:var(--subtext);">${comment}</div>
+  `;
+  addToJournal('Практикум', 'ИТОГ', `${done}/${totalTasks}`, mark);
+}
+
+function resetPractice() {
+  if (!confirm('Сбросить прогресс?')) return;
+  practiceState = {};
+  localStorage.removeItem('practiceState');
+  updateProgress();
+  document.getElementById('finalResult').innerHTML = 'Выполните задания и нажмите «Завершить».';
+  document.querySelectorAll('.quiz-opt').forEach(el => el.classList.remove('correct', 'wrong'));
+  document.querySelectorAll('input[type=radio]').forEach(el => el.checked = false);
+  document.querySelectorAll('input[type=text]').forEach(el => el.value = '');
+  document.querySelectorAll('textarea').forEach(el => el.value = '');
+  document.querySelectorAll('[id^=fb-]').forEach(el => el.innerHTML = '');
+  document.querySelectorAll('[id^=model-]').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.task-done').forEach(el => el.remove());
+}
+
+function shuffleAndResetPractice() {
+  if (!confirm('Перемешать задания и сбросить прогресс?')) return;
+  practiceState = {};
+  localStorage.removeItem('practiceState');
+  initPractice(true);
+  document.getElementById('finalResult').innerHTML = 'Задания перемешаны. Начинайте заново!';
+}
+
+/* ---------- СТАРТ ---------- */
+renderGates();
+renderHierarchy();
+renderNeumann();
+renderFlynn();
+renderQuiz();
+renderMemory();
+initTiming();
+loadJournal();
+renderJournal();
+updateStats();
+loadPracticeState();
+initPractice(true);
+</script>
+</body>
+</html>
